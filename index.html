@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <title>公文時效計算器</title>
+    <script src="https://unpkg.com/vue@3"></script>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_orange.css"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh.js"></script>
+    <style>
+      html {
+        overflow-y: scroll;
+      }
+      .flatpickr-calendar {
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+      }
+
+      /* Enhanced scrollbar style for visual inset */
+      .details-scrollbar::-webkit-scrollbar {
+        width: 14px;
+      }
+      .details-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .details-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #fbbf24;
+        border-radius: 10px;
+        border: 4px solid transparent;
+        background-clip: content-box;
+      }
+      .details-scrollbar::-webkit-scrollbar-thumb:hover {
+        background-color: #f59e0b;
+      }
+
+      .help-button {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+      }
+      .help-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.65);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1050;
+        padding: 1rem;
+      }
+      .help-modal-card {
+        background-color: white;
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+          0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        width: 100%;
+        max-width: 680px;
+        display: flex;
+        flex-direction: column;
+        max-height: 85vh;
+        border: 4px solid #fbcfe8;
+      }
+      .help-modal-header {
+        padding: 1.25rem 2rem 0.75rem 2rem; /* py-5 px-8 pb-3 */
+        border-bottom: 1px solid #e5e7eb; /* border-gray-200 */
+      }
+      .help-modal-header h2 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #db2777;
+        text-align: center;
+      }
+      .help-modal-content {
+        padding: 1.25rem 1rem 1.5rem 2rem; /* Adjusted for scrollbar inset */
+        overflow-y: auto;
+        flex-grow: 1;
+        line-height: 1.8;
+      }
+      .help-modal-content h4 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #c026d3;
+        margin-bottom: 0.75rem;
+        margin-top: 1.25rem;
+      }
+      .help-modal-content h4:not(:first-child) {
+        padding-top: 1.25rem;
+        border-top: 1px solid #f3f4f6; /* Light separator */
+      }
+      .help-modal-content h4:first-child {
+        margin-top: 0.25rem;
+      }
+      .help-modal-content p,
+      .help-modal-content li {
+        font-size: 1rem;
+        color: #374151;
+        margin-bottom: 0.25rem;
+      }
+      .help-modal-content p:last-child,
+      .help-modal-content ul:last-child li:last-child {
+        margin-bottom: 0;
+      }
+      .help-modal-content strong {
+        color: #9d174d;
+        font-weight: 600;
+      }
+      .help-modal-content ul {
+        list-style-type: disc;
+        padding-left: 1.5rem;
+        margin-bottom: 1rem;
+      }
+      .help-modal-content ul ul {
+        list-style-type: circle;
+        margin-top: 0.375rem;
+        margin-bottom: 0.6rem;
+        padding-left: 1.25rem;
+      }
+      .help-modal-content li ul li {
+        margin-bottom: 0.375rem;
+        font-size: 1rem;
+      }
+      .help-modal-content code {
+        background-color: #f3f4f6;
+        color: #be185d;
+        padding: 0.125rem 0.375rem;
+        border-radius: 0.25rem;
+        font-size: 0.9em;
+      }
+      .help-modal-footer {
+        padding: 1rem 2rem 1.25rem 2rem;
+        border-top: 1px solid #e5e7eb;
+      }
+    </style>
+  </head>
+  <body class="bg-yellow-50 min-h-screen p-4 font-sans">
+    <div id="app" class="max-w-3xl mx-auto">
+      <header class="mb-6">
+        <h1
+          class="mt-10 text-4xl font-bold text-pink-600 text-center flex items-center justify-center gap-2"
+        >
+          🎉 公文時效計算器
+        </h1>
+      </header>
+
+      <main>
+        <section
+          class="bg-white rounded-3xl shadow-xl p-6 space-y-6 border-4 border-pink-200"
+        >
+          <div>
+            <label class="block text-lg font-semibold text-pink-700 mb-2"
+              >📌 辦理情形：</label
+            >
+            <div class="grid grid-cols-2 gap-4">
+              <button
+                @click="setFormType('來文存查')"
+                :class="buttonClass('來文存查')"
+              >
+                📁 來文存查
+              </button>
+              <button
+                @click="setFormType('來文函復')"
+                :class="buttonClass('來文函復')"
+              >
+                📬 來文函復
+              </button>
+              <button
+                @click="setFormType('創簽存查')"
+                :class="buttonClass('創簽存查')"
+              >
+                📝 創簽存查
+              </button>
+              <button
+                @click="setFormType('創稿發文')"
+                :class="buttonClass('創稿發文')"
+              >
+                📤 創稿發文
+              </button>
+            </div>
+          </div>
+
+          <div v-if="formType" class="space-y-5">
+            <div>
+              <label
+                :for="formType + '-start'"
+                class="block text-pink-700 font-semibold mb-1"
+                >🕐 {{ labels[formType]?.start || '起始時間' }}</label
+              >
+              <input
+                :id="formType + '-start'"
+                ref="startPicker"
+                type="text"
+                class="w-full border-2 border-pink-200 rounded-xl p-2 bg-white focus:ring-2 focus:ring-pink-400 outline-none"
+              />
+            </div>
+            <div>
+              <label
+                :for="formType + '-end'"
+                class="block text-pink-700 font-semibold mb-1"
+                >✅ {{ labels[formType]?.end || '結束時間' }}</label
+              >
+              <input
+                :id="formType + '-end'"
+                ref="endPicker"
+                type="text"
+                class="w-full border-2 border-pink-200 rounded-xl p-2 bg-white focus:ring-2 focus:ring-pink-400 outline-none"
+              />
+            </div>
+            <div>
+              <label
+                for="manualHolidaysInput"
+                class="block text-pink-700 font-semibold mb-1"
+                >🌧 額外停班日（YYYY-MM-DD，以逗號分隔）</label
+              >
+              <input
+                id="manualHolidaysInput"
+                type="text"
+                v-model="manualHolidayInput"
+                @input="handleManualHolidayInput"
+                class="w-full border-2 border-yellow-300 rounded-xl p-2 bg-yellow-50 focus:ring-2 focus:ring-yellow-500 outline-none"
+                placeholder="例如：2025-08-01, 2025-09-20"
+              />
+            </div>
+            <button
+              @click="calculate"
+              :disabled="!start || !end"
+              class="w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-5 rounded-full shadow-lg transform hover:scale-105 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ✨ 計算時效！
+            </button>
+          </div>
+        </section>
+
+        <section
+          v-if="result !== null"
+          class="mt-6 bg-green-100 border-l-8 border-green-400 rounded-2xl p-5 shadow-xl"
+        >
+          <h3 class="text-2xl font-bold text-green-800 mb-2">
+            ⏱ 處理時數：{{ formattedTime }}
+          </h3>
+          <h3 class="text-2xl font-bold text-green-800">
+            📅 換算為處理日數：{{ result }} 日
+          </h3>
+        </section>
+
+        <section
+          v-if="dailyDetails.length > 0"
+          class="mt-6 bg-blue-50 border-l-8 border-blue-300 rounded-2xl p-5 shadow-xl"
+        >
+          <h3 class="text-xl font-bold text-blue-700 mb-3">
+            🕰️ 處理時數明細：
+          </h3>
+          <ul
+            class="space-y-1.5 text-sm text-gray-800 max-h-60 overflow-y-auto details-scrollbar pr-2"
+          >
+            <li
+              v-for="detail in dailyDetails"
+              :key="detail.date + detail.reason"
+              :class="['p-2 rounded-lg', detailTypeClass(detail.type)]"
+            >
+              <span class="font-semibold">{{ detail.date }}</span>:
+              <span v-if="detail.type === 'work'"> {{ detail.reason }}</span>
+              <span v-else> {{ detail.reason }}</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="mt-4 text-xs text-gray-600 space-y-1">
+          <p
+            v-if="initialCalendarLoadAttempted && Object.keys(calendarApiData).length > 0"
+          >
+            ℹ️ 已載入 {{ Object.keys(calendarApiData).length }}
+            筆政府行事曆資料。
+          </p>
+          <p v-if="manualHolidays.length > 0">
+            ℹ️ 已設定額外停班日共 {{ manualHolidays.length }} 筆：{{
+            manualHolidays.join(', ') }}（已儲存於瀏覽器）。
+          </p>
+          <p v-if="missingYears.length > 0" class="text-red-600 font-semibold">
+            ⚠️ 注意：無法載入 {{ missingYears.join('、') }}
+            年之政府行事曆，這些年份將僅依週末判斷工作日。
+          </p>
+        </section>
+      </main>
+
+      <button
+        @click="toggleHelpModal(true)"
+        class="help-button bg-pink-500 hover:bg-pink-600 text-white font-bold py-3 px-4 rounded-full shadow-lg transition transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75"
+      >
+        💡<span class="hidden sm:inline ml-1">操作說明</span>
+      </button>
+
+      <div
+        v-if="showHelpModal"
+        class="help-modal-overlay"
+        @click.self="toggleHelpModal(false)"
+      >
+        <div class="help-modal-card">
+          <div class="help-modal-header">
+            <h2>💡 操作說明 💡</h2>
+          </div>
+          <div class="help-modal-content details-scrollbar">
+            <h4>📄 選擇辦理情形</h4>
+            <p>首先，請根據公文類型，在最上方的按鈕選擇一種「辦理情形」：</p>
+            <ul>
+              <li><strong>📁 來文存查：</strong>收文後直接存查的案件。</li>
+              <li><strong>📬 來文函復：</strong>收文後需要函復的案件。</li>
+              <li><strong>📝 創簽存查：</strong>自行創簽並存查的案件。</li>
+              <li><strong>📤 創稿發文：</strong>自行創稿且需要發文的案件。</li>
+            </ul>
+
+            <h4>📅 設定起迄時間</h4>
+            <p>選擇辦理情形後，畫面會出現對應的起迄時間欄位。</p>
+            <ul>
+              <li>點擊欄位輸入框，彈出日期時間選擇器。</li>
+              <li>
+                請選擇公文辦理過程中的「起始時間」與「結束時間」（欄位名稱將根據選擇的「辦理情形」動態調整）。
+              </li>
+              <li><strong>注意：</strong>結束時間必須晚於起始時間。</li>
+            </ul>
+
+            <p><strong>起始時間節點說明：</strong></p>
+            <ul>
+              <li>
+                <strong>「來文存查」</strong>或<strong>「來文函復」</strong>：
+                <ul>
+                  <li>起始時間為「收文登記」的時間。</li>
+                  <li>
+                    處理時效將從<strong>收文次日</strong> 08:00 開始計算。
+                  </li>
+                </ul>
+              </li>
+              <li>
+                <strong>「創簽存查」</strong>或<strong>「創稿發文」</strong>：
+                <ul>
+                  <li>起始時間為「送出承辦單位」的時間。</li>
+                  <li>處理時效將從<strong>起始時間</strong>開始計算。</li>
+                </ul>
+              </li>
+            </ul>
+
+            <h4>🌧️ 設定額外停班日（選填）</h4>
+            <p>
+              若在公文處理期間，遇到<strong>政府公告的臨時停班日</strong>（例如颱風假），但這些日期並未包含在自動載入的政府行事曆中時，可以在此手動輸入。
+            </p>
+            <ul>
+              <li>
+                格式為
+                <code>YYYY-MM-DD</code
+                >，多個日期請用<strong>半形逗號</strong>分隔。
+              </li>
+              <li>例如：<code>2025-08-01, 2025-09-20</code>。</li>
+              <li>
+                設定的額外停班日會自動儲存在瀏覽器中，下次開啟時將自動載入。
+              </li>
+            </ul>
+
+            <h4>✨ 開始計算</h4>
+            <p>填寫完畢後，點擊「✨ 計算時效！」按鈕。</p>
+
+            <h4>📊 查看結果</h4>
+            <ul>
+              <li>
+                <strong>⏱ 處理時數：</strong
+                >顯示總共花費的「日、小時、分鐘」。此處的「日」，係指 8
+                小時工作日的概念。
+              </li>
+              <li>
+                <strong>📅 換算為處理日數：</strong
+                >根據特定的公文時效計算規則（例如：1 小時換算為 0.12 日，4
+                小時換算為 0.50 日等）轉換後的日數。
+              </li>
+              <li>
+                <strong>🕰️ 處理時數明細：</strong
+                >列出公文辦理期間每日的狀態（工作日、國定假日、額外停班日）及該日的處理時數。
+                <ul>
+                  <li>若為「來文」類型，收文當日不計入處理時數。</li>
+                  <li>
+                    工作日按每日 08:00－12:00 及 13:00－17:00 計算實際處理時數。
+                  </li>
+                  <li>國定假日及額外停班日不計入處理時數。</li>
+                </ul>
+              </li>
+            </ul>
+
+            <h4>⚠️ 注意事項</h4>
+            <ul>
+              <li>
+                本計算器會自動嘗試載入政府行事曆，但若特定年份資料無法載入時，該年度將僅依週末判斷是否為工作日，計算結果可能會有差異。
+              </li>
+              <li>
+                計算規則基於標準上下班時間（08:00－12:00 及 13:00－17:00）。
+              </li>
+              <li>本工具僅供參考，實際時效認定仍請依公文系統規定為準。</li>
+            </ul>
+          </div>
+          <div class="help-modal-footer">
+            <button
+              @click="toggleHelpModal(false)"
+              class="help-modal-close-button w-full bg-pink-500 hover:bg-pink-600 text-white font-bold py-2.5 px-5 rounded-full shadow-md transition focus:outline-none focus:ring-2 focus:ring-pink-400 focus:ring-opacity-75"
+            >
+              關閉說明
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center text-sm text-gray-400 mt-10 pb-4">
+      © 2025 公文時效計算器｜版本號 1.0
+    </footer>
+
+    <script>
+      const LOCAL_STORAGE_MANUAL_HOLIDAYS_KEY =
+        "gongwenCalculator_manualHolidaysInput";
+      const CALENDAR_API_BASE_URL =
+        "https://raw.githubusercontent.com/ruyut/TaiwanCalendar/master/data/";
+
+      async function fetchCalendarDataForYear(year) {
+        const url = `${CALENDAR_API_BASE_URL}${year}.json`;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            console.warn(
+              `⚠️ 無法載入 ${year} 年政府行事曆資料 (HTTP ${response.status})。`
+            );
+            return { success: false, data: [], year: year };
+          }
+          const rawData = await response.json();
+          const processedData = rawData.map((dayInfo) => ({
+            date: `${dayInfo.date.slice(0, 4)}-${dayInfo.date.slice(
+              4,
+              6
+            )}-${dayInfo.date.slice(6, 8)}`,
+            isHoliday: dayInfo.isHoliday,
+            description: dayInfo.description || "",
+            week: dayInfo.week || "",
+          }));
+          return { success: true, data: processedData, year: year };
+        } catch (error) {
+          console.warn(
+            `⚠️ 讀取 ${year} 年政府行事曆時發生網路或解析錯誤: ${error}。`
+          );
+          return { success: false, data: [], year: year };
+        }
+      }
+
+      const app = Vue.createApp({
+        data() {
+          return {
+            formType: "",
+            start: "",
+            end: "",
+            result: null,
+            totalHours: 0,
+            calendarApiData: {},
+            missingYears: [],
+            manualHolidayInput: "",
+            manualHolidays: [],
+            dailyDetails: [],
+            initialCalendarLoadAttempted: false,
+            showHelpModal: false,
+            labels: {
+              來文存查: { start: "收文登記", end: "結案歸檔" },
+              來文函復: { start: "收文登記", end: "送發文人員簽收" },
+              創簽存查: { start: "送出承辦單位", end: "結案歸檔" },
+              創稿發文: { start: "送出承辦單位", end: "送發文人員簽收" },
+            },
+            flatpickrStartInstance: null,
+            flatpickrEndInstance: null,
+          };
+        },
+        computed: {
+          formattedTime() {
+            if (
+              this.totalHours === null ||
+              this.totalHours === undefined ||
+              this.totalHours === 0
+            )
+              return "0 日 0 小時 0 分鐘";
+            const totalMinutes = Math.round(this.totalHours * 60);
+            const workDayMinutes = 8 * 60;
+            const days = Math.floor(totalMinutes / workDayMinutes);
+            const remainingMinutesAfterFullDays = totalMinutes % workDayMinutes;
+            const hours = Math.floor(remainingMinutesAfterFullDays / 60);
+            const minutes = remainingMinutesAfterFullDays % 60;
+            return `${days} 日 ${hours} 小時 ${minutes} 分鐘`;
+          },
+        },
+        methods: {
+          toggleHelpModal(state) {
+            this.showHelpModal = state;
+          },
+          setFormType(type) {
+            this.formType = type;
+            this.resetFormFields();
+            this.$nextTick(() => {
+              this.initializeDatePickers();
+            });
+          },
+          resetFormFields() {
+            this.start = "";
+            this.end = "";
+            this.result = null;
+            this.totalHours = 0;
+            this.dailyDetails = [];
+            if (this.flatpickrStartInstance)
+              this.flatpickrStartInstance.clear();
+            if (this.flatpickrEndInstance) this.flatpickrEndInstance.clear();
+          },
+          initializeDatePickers() {
+            const commonConfig = {
+              enableTime: true,
+              time_24hr: true,
+              dateFormat: "Y-m-d H:i",
+              locale: "zh",
+            };
+            if (this.$refs.startPicker) {
+              if (this.flatpickrStartInstance)
+                this.flatpickrStartInstance.destroy();
+              this.flatpickrStartInstance = flatpickr(this.$refs.startPicker, {
+                ...commonConfig,
+                onChange: (selectedDates) => {
+                  this.start = selectedDates[0]
+                    ? selectedDates[0].toISOString()
+                    : "";
+                },
+              });
+            }
+            if (this.$refs.endPicker) {
+              if (this.flatpickrEndInstance)
+                this.flatpickrEndInstance.destroy();
+              this.flatpickrEndInstance = flatpickr(this.$refs.endPicker, {
+                ...commonConfig,
+                onChange: (selectedDates) => {
+                  this.end = selectedDates[0]
+                    ? selectedDates[0].toISOString()
+                    : "";
+                },
+              });
+            }
+          },
+          buttonClass(type) {
+            return {
+              "bg-pink-500 text-white shadow-md": this.formType === type,
+              "bg-pink-100 text-pink-700 hover:bg-pink-200 focus:bg-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-400":
+                this.formType !== type,
+              "font-semibold py-2.5 px-4 rounded-xl transition-all duration-150 ease-in-out": true,
+            };
+          },
+          detailTypeClass(type) {
+            const typeMap = {
+              work: "bg-green-100 text-green-800",
+              weekend: "bg-gray-200 text-gray-700",
+              holiday: "bg-purple-100 text-purple-700",
+              manual_holiday: "bg-yellow-100 text-yellow-800",
+              info: "bg-indigo-100 text-indigo-700",
+              work_no_hours: "bg-blue-100 text-blue-600",
+              // For types from getDayClassification that might be used directly for display
+              api_workday: "bg-blue-100 text-blue-600", // Could be same as 'info' or 'work_no_hours'
+              assumed_workday: "bg-blue-100 text-blue-600", // Could be same as 'info' or 'work_no_hours'
+            };
+            return typeMap[type] || "bg-gray-50 text-gray-500";
+          },
+          handleManualHolidayInput() {
+            this.parseManualHolidays();
+            localStorage.setItem(
+              LOCAL_STORAGE_MANUAL_HOLIDAYS_KEY,
+              this.manualHolidayInput
+            );
+          },
+          parseManualHolidays() {
+            this.manualHolidays = this.manualHolidayInput
+              .split(",")
+              .map((dateString) => dateString.trim())
+              .filter((dateString) => /^\d{4}-\d{2}-\d{2}$/.test(dateString))
+              .sort();
+          },
+          loadManualHolidaysFromStorage() {
+            const storedValue = localStorage.getItem(
+              LOCAL_STORAGE_MANUAL_HOLIDAYS_KEY
+            );
+            if (storedValue) {
+              this.manualHolidayInput = storedValue;
+              this.parseManualHolidays();
+            }
+          },
+          async loadHolidaysForDateRange(startDate, endDate) {
+            const startYear = startDate.getFullYear();
+            const endYear = endDate.getFullYear();
+            const yearsToFetch = new Set();
+            for (let year = startYear; year <= endYear; year++) {
+              yearsToFetch.add(year);
+            }
+
+            const currentMissingYears = new Set(this.missingYears);
+            const newCalendarApiData = { ...this.calendarApiData };
+
+            for (const year of yearsToFetch) {
+              let yearDataExistsInApi = false;
+              for (const dateKey in newCalendarApiData) {
+                if (dateKey.startsWith(year.toString())) {
+                  yearDataExistsInApi = true;
+                  break;
+                }
+              }
+
+              if (!yearDataExistsInApi && !currentMissingYears.has(year)) {
+                const apiResult = await fetchCalendarDataForYear(year);
+                if (apiResult.success) {
+                  apiResult.data.forEach((dayInfo) => {
+                    newCalendarApiData[dayInfo.date] = {
+                      isHoliday: dayInfo.isHoliday,
+                      description: dayInfo.description,
+                      week: dayInfo.week,
+                    };
+                  });
+                } else {
+                  currentMissingYears.add(year);
+                }
+              }
+            }
+            this.calendarApiData = newCalendarApiData;
+            this.missingYears = Array.from(currentMissingYears).sort();
+            this.initialCalendarLoadAttempted = true;
+          },
+          // Helper to classify a day
+          getDayClassification(date) {
+            const dateStr = this.formatDateToYyyyMmDd(date);
+            const apiDayInfo = this.calendarApiData[dateStr];
+            const isCurrentYearMissingApiData = this.missingYears.includes(
+              date.getFullYear()
+            );
+            let type, baseReason;
+
+            if (this.isManualHoliday(date)) {
+              type = "manual_holiday";
+              baseReason = "額外停班日";
+            } else if (apiDayInfo !== undefined) {
+              if (apiDayInfo.isHoliday) {
+                type = "holiday";
+                baseReason = apiDayInfo.description || "國定假日";
+              } else {
+                // API says it's a workday
+                type = "api_workday"; // Internal type, might become 'work' or 'work_no_hours' later
+                baseReason =
+                  apiDayInfo.description && apiDayInfo.description.trim() !== ""
+                    ? apiDayInfo.description
+                    : "上班日";
+              }
+            } else if (this.isWeekend(date)) {
+              type = "weekend";
+              baseReason = `週末${
+                isCurrentYearMissingApiData
+                  ? ` (${date.getFullYear()}年行事曆缺失)`
+                  : ""
+              }`;
+            } else {
+              // Assumed workday
+              type = "assumed_workday"; // Internal type
+              baseReason = `工作日${
+                isCurrentYearMissingApiData
+                  ? ` (${date.getFullYear()}年行事曆缺失，依週末規則判斷)`
+                  : " (無行事曆資料，依週末規則判斷)"
+              }`;
+            }
+            return { type, baseReason, dateStr };
+          },
+          async calculate() {
+            if (!this.start || !this.end) {
+              alert("請選擇起始和結束時間！");
+              return;
+            }
+            const initialStartDateTime = new Date(this.start);
+            const endDateTime = new Date(this.end);
+
+            if (initialStartDateTime >= endDateTime) {
+              alert("結束時間必須晚於起始時間！");
+              return;
+            }
+
+            this.dailyDetails = [];
+            await this.loadHolidaysForDateRange(
+              initialStartDateTime,
+              endDateTime
+            );
+
+            let processingStartDateTime = new Date(initialStartDateTime);
+
+            if (["來文存查", "來文函復"].includes(this.formType)) {
+              let loggingDate = new Date(initialStartDateTime);
+              loggingDate.setHours(0, 0, 0, 0);
+
+              let actualProcessingDayStartNormalized = this.getNextWorkdayDate(
+                new Date(initialStartDateTime)
+              );
+
+              while (loggingDate < actualProcessingDayStartNormalized) {
+                const classification = this.getDayClassification(loggingDate);
+                let displayType = classification.type;
+                let displayReason = classification.baseReason;
+
+                const isInitialDay =
+                  classification.dateStr ===
+                  this.formatDateToYyyyMmDd(initialStartDateTime);
+                const reasonSuffix = isInitialDay
+                  ? " (收文當日，不計入處理時效)"
+                  : " (處理時效起算前)";
+
+                // If it's a potential workday but logged before processing starts, show as 'info'
+                if (
+                  ["api_workday", "assumed_workday"].includes(
+                    classification.type
+                  )
+                ) {
+                  displayType = "info";
+                }
+                displayReason += reasonSuffix;
+                this.dailyDetails.push({
+                  date: classification.dateStr,
+                  type: displayType,
+                  reason: displayReason,
+                });
+                loggingDate.setDate(loggingDate.getDate() + 1);
+                loggingDate.setHours(0, 0, 0, 0);
+              }
+              processingStartDateTime = new Date(
+                actualProcessingDayStartNormalized
+              );
+              processingStartDateTime.setHours(8, 0, 0, 0);
+            }
+
+            if (processingStartDateTime >= endDateTime) {
+              this.totalHours = 0;
+              const dateForZeroHourLog = this.formatDateToYyyyMmDd(
+                processingStartDateTime
+              );
+              const reasonForZeroHourLog =
+                "計算起始時間已晚於或等於結束時間，無處理時數。";
+              // Avoid duplicate if already logged by '來文' pre-processing
+              if (
+                !this.dailyDetails.find(
+                  (d) =>
+                    d.date === dateForZeroHourLog &&
+                    d.reason.includes("無處理時數")
+                )
+              ) {
+                this.dailyDetails.push({
+                  date: dateForZeroHourLog,
+                  type: "info",
+                  reason: reasonForZeroHourLog,
+                });
+              }
+            } else {
+              this.totalHours = this.calculateWorkingHoursAndLogDetails(
+                processingStartDateTime,
+                endDateTime
+              );
+            }
+
+            this.result = this.convertHoursToDays(this.totalHours).toFixed(2);
+          },
+          formatDateToYyyyMmDd(date) {
+            const year = date.getFullYear();
+            const month = (date.getMonth() + 1).toString().padStart(2, "0");
+            const day = date.getDate().toString().padStart(2, "0");
+            return `${year}-${month}-${day}`;
+          },
+          isWeekend(date) {
+            const dayOfWeek = date.getDay();
+            return dayOfWeek === 0 || dayOfWeek === 6;
+          },
+          isManualHoliday(date) {
+            const dateStr = this.formatDateToYyyyMmDd(date);
+            return this.manualHolidays.includes(dateStr);
+          },
+          isNonWorkday(date) {
+            const dateStr = this.formatDateToYyyyMmDd(date);
+            if (this.isManualHoliday(date)) return true;
+
+            const apiDayInfo = this.calendarApiData[dateStr];
+            if (apiDayInfo !== undefined) return apiDayInfo.isHoliday;
+
+            return this.isWeekend(date);
+          },
+          getNextWorkdayDate(date) {
+            const nextDay = new Date(date);
+            nextDay.setDate(nextDay.getDate() + 1);
+            nextDay.setHours(0, 0, 0, 0);
+            while (this.isNonWorkday(nextDay)) {
+              // Before incrementing, log this non-workday if it hasn't been covered by the pre-processing loop in calculate()
+              // This logic is tricky because getNextWorkdayDate is also called by the pre-processing loop.
+              // For now, assume it's mainly for finding the *first* workday.
+              // The main calculate loop will log these days if they fall within range.
+              nextDay.setDate(nextDay.getDate() + 1);
+            }
+            return nextDay;
+          },
+          calculateWorkingHoursAndLogDetails(startDateTime, endDateTime) {
+            let cumulativeWorkHours = 0;
+            let currentDayLoop = new Date(startDateTime);
+            currentDayLoop.setHours(0, 0, 0, 0);
+
+            const finalDayEndLoopBoundary = new Date(endDateTime);
+            finalDayEndLoopBoundary.setHours(23, 59, 59, 999);
+
+            while (currentDayLoop <= finalDayEndLoopBoundary) {
+              const classification = this.getDayClassification(currentDayLoop);
+              let detailEntry = {
+                date: classification.dateStr,
+                type: classification.type,
+                reason: classification.baseReason,
+              };
+              let dailyWorkHours = 0;
+
+              if (
+                ["manual_holiday", "holiday", "weekend"].includes(
+                  classification.type
+                )
+              ) {
+                detailEntry.reason += " (不計時)";
+              } else {
+                // 'api_workday' or 'assumed_workday'
+                const actualSegmentStartForThisDay = new Date(
+                  Math.max(startDateTime.getTime(), currentDayLoop.getTime())
+                );
+                const dayEndBoundaryForCalc = new Date(currentDayLoop);
+                dayEndBoundaryForCalc.setHours(23, 59, 59, 999);
+                const actualSegmentEndForThisDay = new Date(
+                  Math.min(
+                    endDateTime.getTime(),
+                    dayEndBoundaryForCalc.getTime()
+                  )
+                );
+
+                if (actualSegmentStartForThisDay < actualSegmentEndForThisDay) {
+                  const morningWorkStart = new Date(currentDayLoop);
+                  morningWorkStart.setHours(8, 0, 0, 0);
+                  const morningWorkEnd = new Date(currentDayLoop);
+                  morningWorkEnd.setHours(12, 0, 0, 0);
+                  const afternoonWorkStart = new Date(currentDayLoop);
+                  afternoonWorkStart.setHours(13, 0, 0, 0);
+                  const afternoonWorkEnd = new Date(currentDayLoop);
+                  afternoonWorkEnd.setHours(17, 0, 0, 0);
+
+                  dailyWorkHours += this.getOverlapHours(
+                    actualSegmentStartForThisDay,
+                    actualSegmentEndForThisDay,
+                    morningWorkStart,
+                    morningWorkEnd
+                  );
+                  dailyWorkHours += this.getOverlapHours(
+                    actualSegmentStartForThisDay,
+                    actualSegmentEndForThisDay,
+                    afternoonWorkStart,
+                    afternoonWorkEnd
+                  );
+                }
+
+                if (dailyWorkHours > 0) {
+                  cumulativeWorkHours += dailyWorkHours;
+                  const dailyTotalMinutes = Math.round(dailyWorkHours * 60);
+                  const dailyH = Math.floor(dailyTotalMinutes / 60);
+                  const dailyM = dailyTotalMinutes % 60;
+                  detailEntry.type = "work"; // Final display type
+                  detailEntry.reason = `${classification.baseReason}，處理 ${dailyH} 小時 ${dailyM} 分鐘`;
+                } else {
+                  detailEntry.type = "work_no_hours"; // Final display type
+                  detailEntry.reason = `${classification.baseReason}，但無符合計算的時段或時數為零`;
+                }
+              }
+              this.dailyDetails.push(detailEntry);
+              currentDayLoop.setDate(currentDayLoop.getDate() + 1);
+              currentDayLoop.setHours(0, 0, 0, 0);
+            }
+            return cumulativeWorkHours;
+          },
+          getOverlapHours(
+            segment1Start,
+            segment1End,
+            segment2Start,
+            segment2End
+          ) {
+            const overlapStart = Math.max(
+              segment1Start.getTime(),
+              segment2Start.getTime()
+            );
+            const overlapEnd = Math.min(
+              segment1End.getTime(),
+              segment2End.getTime()
+            );
+            const diffMillis = overlapEnd - overlapStart;
+            return diffMillis > 0 ? diffMillis / (1000 * 60 * 60) : 0;
+          },
+          convertHoursToDays(hoursToConvert) {
+            if (hoursToConvert <= 0) return 0.0;
+
+            const HOURS_PER_WORKDAY = 8;
+            const fullDays = Math.floor(hoursToConvert / HOURS_PER_WORKDAY);
+            const remainingHoursOnly = hoursToConvert % HOURS_PER_WORKDAY;
+            let fractionalDays = 0;
+
+            if (remainingHoursOnly > 0) {
+              if (remainingHoursOnly < 1) {
+                fractionalDays = 0.1;
+              } else {
+                const flooredRemainingHours = Math.floor(remainingHoursOnly);
+                const conversionTable = {
+                  1: 0.12,
+                  2: 0.25,
+                  3: 0.38,
+                  4: 0.5,
+                  5: 0.62,
+                  6: 0.75,
+                  7: 0.88,
+                };
+                fractionalDays = conversionTable[flooredRemainingHours] || 0;
+              }
+            }
+            return fullDays + fractionalDays;
+          },
+        },
+        mounted() {
+          this.loadManualHolidaysFromStorage();
+        },
+      });
+      app.mount("#app");
+    </script>
+  </body>
+</html>
